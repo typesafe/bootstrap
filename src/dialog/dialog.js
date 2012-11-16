@@ -70,7 +70,7 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 					body.bind('keydown', handledExcapeKey);
 				}
 				if(options.backdrop && options.backdropClick){
-					backdropEl.bind('click', this.close);
+					backdropEl.bind('click', handleBackDropClick);
 				}
 			};
 
