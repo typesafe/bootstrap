@@ -60,6 +60,11 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 				}
 			};
 
+			var handleBackDropClick = function(e){
+				options.scope.dialog.close();
+				e.preventDefault();
+			};
+
 			var bindEvents = function(){
 				if(options.keyboard){
 					body.bind('keydown', handledExcapeKey);
@@ -74,7 +79,7 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 					body.unbind('keydown', handledExcapeKey);
 				}
 				if(options.backdrop && options.backdropClick){
-					backdropEl.unbind('click', this.close);
+					backdropEl.unbind('click', handleBackDropClick);
 				}
 			};
 
