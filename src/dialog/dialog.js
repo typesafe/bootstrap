@@ -43,7 +43,7 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 
 		var Dialog = function(template, opts){
 
-			var options = this.options = angular.extend(defaults, globalOptions, opts);
+			var options = this.options = angular.extend({}, defaults, globalOptions, opts);
 			options.scope = options.scope || $rootScope.$new();
 			options.scope.dialog = this;
 
@@ -133,11 +133,11 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 		// This version returns a SERVICE that allows you to open dialogs specifying a template and optional options. The 
 		// open method returns an object that represents the dialog and allows, closing it (and opening it again)
 
-		// Aother option would be returning a CONSTRUCTOR that creates a dialog, but does not show it immediately. 
+		// Another option would be returning a CONSTRUCTOR that creates a dialog, but does not show it immediately. 
 
 		// I'm leaning towards the first option:
 		//	- it does not manipulate the DOM unless it has to, this could be done with the .ctor version as well, 
-		//	  but that feels a bit awkward, I think
+		//	but that feels a bit awkward, I think
 		//	- The injected $dialog could also support Prompt, Alert, etc. which makes it defintely a service.
 		
 		// ze $dialog servize
