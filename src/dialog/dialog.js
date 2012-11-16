@@ -95,10 +95,6 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 				if(options.backdropFade){
 					backdropEl.removeClass('in');
 				}
-				modalEl.hide();
-				if(options.backdrop) {
-					backdropEl.hide();
-				}
 
 				modalEl.remove();
 				if(options.backdrop) {
@@ -126,10 +122,6 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 					}
 				},1);
 
-				modalEl.show();
-				if(options.backdrop) {
-					backdropEl.show();
-				}
 
 				bindEvents();
 			};
