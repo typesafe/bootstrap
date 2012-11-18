@@ -1,5 +1,6 @@
+var angularUI = {};
 
-var getTransitionEndEventName = (function(){
+angularUI.getTransitionEndEventName = (function(){
 
 	var transitionEndEventName;
 

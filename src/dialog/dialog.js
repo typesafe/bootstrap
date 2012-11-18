@@ -52,8 +52,11 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 			var backdropEl = createElement(options.backdropClass, options.backdropFade);
 			var modalEl = createElement(options.modalClass, options.modalFade);
 			modalEl.attr("ng-include", "'" + template + "'");
+			if(options.controller){
+				modalEl.attr("ng-controller", options.controller);
+			}
 
-			var handledExcapeKey = function(e){
+			var handledEscapeKey = function(e){
 				if (e.keyCode === 27) {
 					options.scope.dialog.close();
 					e.preventDefault();
@@ -67,7 +70,7 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 
 			var bindEvents = function(){
 				if(options.keyboard){
-					body.bind('keydown', handledExcapeKey);
+					body.bind('keydown', handledEscapeKey);
 				}
 				if(options.backdrop && options.backdropClick){
 					backdropEl.bind('click', handleBackDropClick);
@@ -76,34 +79,43 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 
 			var unbindEvents = function(){
 				if(options.keyboard){
-					body.unbind('keydown', handledExcapeKey);
+					body.unbind('keydown', handledEscapeKey);
 				}
 				if(options.backdrop && options.backdropClick){
 					backdropEl.unbind('click', handleBackDropClick);
 				}
 			};
 
-			this.isOpen = function() { return modalEl.css('display') === 'block'; };
-
-			this.close = function(result){
-
-				// TODO: handle transition end event for invoking callback
-
-				if(options.modalFade){
-					modalEl.removeClass('in');
-				}
-				if(options.backdropFade){
-					backdropEl.removeClass('in');
-				}
-
+			var onCloseComplete = function(result){
 				modalEl.remove();
 				if(options.backdrop) {
 					backdropEl.remove();
 				}
-
 				unbindEvents();
-
 				if(options.callback) { options.callback(result); }
+			};
+
+			this.isOpen = function() { return modalEl.css('display') === 'block'; };
+
+			this.close = function(result){
+
+				var transitionHandler = function(e){
+					modalEl.unbind(angularUI.getTransitionEndEventName(), transitionHandler);
+					onCloseComplete(result);
+				};
+
+				modalEl.bind(angularUI.getTransitionEndEventName(), transitionHandler);
+				
+				if(options.modalFade){
+					modalEl.removeClass('in');
+
+					if(options.backdropFade){
+						backdropEl.removeClass('in');
+					}
+					return;
+				}
+
+				onCloseComplete(result);
 			};
 
 			this.open = function(){
