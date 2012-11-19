@@ -101,6 +101,7 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 				if(options.backdrop) {
 					backdropEl.remove();
 				}
+				open = false;
 				unbindEvents();
 
 				if(options.callback) { options.callback(result); }
@@ -121,11 +122,10 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 			}
 
 			createCallback('closed');
-
-			this.isOpen = function() { return modalEl.css('display') === 'block'; };
+			var open = false;
+			this.isOpen = function() { return open; };
 
 			this.close = function(result){
-
 				var transitionHandler = function(e){
 					modalEl.unbind(angularUI.getTransitionEndEventName(), transitionHandler);
 					onCloseComplete(result);
@@ -151,7 +151,7 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 					body.append(backdropEl);
 				}
 				body.append($compile(modalEl)(this.options.scope));
-
+				open = true;
 				$timeout(function(){
 					if(options.modalFade){
 						modalEl.addClass('in');
