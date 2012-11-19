@@ -19,7 +19,7 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 		globalOptions = value;
 	};
 
-	this.$get = ["$document","$compile","$rootScope","$controller","$timeout", function ($document,  $compile,  $rootScope,  $controller,  $timeout) {
+	this.$get = ["$document","$compile","$rootScope","$controller","$timeout", "$q", function ($document,  $compile,  $rootScope,  $controller,  $timeout, $q) {
 
 		var body = $document.find('body');
 
@@ -42,7 +42,6 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 		};
 
 		var Dialog = function(template, opts){
-
 			var options = this.options = angular.extend({}, defaults, globalOptions, opts);
 			options.scope = options.scope || $rootScope.$new();
 			options.scope.dialog = this;
@@ -86,14 +85,42 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 				}
 			};
 
+			promiseCallbacks = {};
+
+			var thiz = this;
+
+			var createCallback = function(name){
+				thiz[name] = function(fn){
+					promiseCallbacks[name] = fn;
+					return this;
+				};
+			};
+
 			var onCloseComplete = function(result){
 				modalEl.remove();
 				if(options.backdrop) {
 					backdropEl.remove();
 				}
 				unbindEvents();
+
 				if(options.callback) { options.callback(result); }
+				
+				if(promiseCallbacks[result]) {
+					promiseCallbacks[result](result);
+				}
+				if(promiseCallbacks['closed']){
+					promiseCallbacks['closed'](result);
+				}
 			};
+
+			// add promise method for each button
+			if(options.locals.buttons){
+				for(var i = 0;i < options.locals.buttons.length; i++){
+					createCallback(options.locals.buttons[i].result);
+				}
+			}
+
+			createCallback('closed');
 
 			this.isOpen = function() { return modalEl.css('display') === 'block'; };
 
@@ -134,7 +161,6 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 					}
 				},1);
 
-
 				bindEvents();
 			};
 		};
@@ -151,13 +177,30 @@ angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
 		
 		// ze $dialog servize
 		return {
-			prompt: function(opts){
-				return this.open('template/prompt.html', opts);
-			},
-			alert: function(opts){
-				return this.open('template/alert.html', opts);
+			message: function(title, message, buttons, opts){
+				if(!title) {
+					throw new Error('title is required');
+				}
+				if(!message) {
+					throw new Error('message is required');
+				}
+				if(!buttons) {
+					throw new Error('buttons is required');
+				}
+				var options = angular.extend({}, opts, {
+					locals: {
+						title:title,
+						message:message,
+						buttons:buttons // [{label:, cssClass:, result:}]
+					}
+				});
+				
+				return this.open('template/dialog/message.html', options);
 			},
 			open: function(template, opts){
+				if(!template) {
+					throw new Error('template is required');
+				}
 				var dlg = new Dialog(template, opts);
 				dlg.open();
 				return dlg;

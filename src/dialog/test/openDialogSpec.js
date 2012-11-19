@@ -2,8 +2,9 @@ describe('$dialog', function(){
 
 	var $document, $compile, $scope, $rootScope, $dialog, provider;
 
+	beforeEach(module('ui.bootstrap.dialog'));
 	beforeEach(function(){
-		module('ui.bootstrap.dialog');
+		
 		module(function($dialogProvider){
 			provider = $dialogProvider;
 		});
@@ -24,11 +25,24 @@ describe('$dialog', function(){
 		expect($dialog).toBeDefined();
 	});
 
+	describe('handling result through promise', function(){
+		var d, result;
+		beforeEach(function(){
+			d = $dialog.open('foo')
+			.closed(function(res){result = res;});
+			d.close('res');
+		});
+
+		it('should call function', function(){
+			expect(result).toBe('res');
+		});
+	});
+
 	describe('opening a dialog', function(){
 
 		var d;
 		beforeEach(function(){
-			d = $dialog.open();
+			d = $dialog.open('foo');
 		});
 		afterEach(function(){
 			d.close();
@@ -66,7 +80,7 @@ describe('$dialog', function(){
 		var setOptionBeforeEachAndOpen = function(opts){
 			beforeEach(function(){
 				provider.options(opts);
-				d = $dialog.open();
+				d = $dialog.open('foo');
 			});
 		};
 
@@ -93,7 +107,6 @@ describe('$dialog', function(){
 				expect($document.find('body > div.foo').length).toBe(1);
 			});
 		});
-
 	});
 
 	describe('closing a dialog', function(){
@@ -101,7 +114,7 @@ describe('$dialog', function(){
 		var d;
 		
 		beforeEach(function(){
-			d = $dialog.open();
+			d = $dialog.open('foo');
 			d.close();
 		});
 
