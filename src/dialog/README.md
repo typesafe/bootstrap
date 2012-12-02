@@ -43,7 +43,7 @@ Example:
 
     app.controller('MainCtrl', function($dialog, $scope) {
         $scope.openItemEditor = function(item){
-            var d = $dialog.open('dialogs/item-editor.html', {modalFade: false, locals: {item: item}});
+            var d = $dialog.open({templateUrl: 'dialogs/item-editor.html', modalFade: false, locals: {item: item}});
         };
     });
 

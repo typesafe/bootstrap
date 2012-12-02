@@ -28,8 +28,9 @@ describe('$dialog', function(){
 	describe('handling result through promise', function(){
 		var d, result;
 		beforeEach(function(){
-			d = $dialog.open('foo')
+			d = $dialog.open({template:'foo'})
 			.closed(function(res){result = res;});
+      $rootScope.$apply(); //$apply after opening to auto-load .resolve promises (template for example)
 			d.close('res');
 		});
 
@@ -42,7 +43,8 @@ describe('$dialog', function(){
 
 		var d;
 		beforeEach(function(){
-			d = $dialog.open('foo');
+			d = $dialog.open({template:'foo'});
+      $rootScope.$apply();
 		});
 		afterEach(function(){
 			d.close();
@@ -63,10 +65,6 @@ describe('$dialog', function(){
 		it('a dialog instance should be returned', function(){
 			expect(d).toBeDefined();
 		});
-
-		it('should ad the dialog to the scope', function(){
-			expect(d.options.scope.dialog).toBe(d);
-		});
 	});
 
 	describe('opening with global options', function(){
@@ -80,7 +78,8 @@ describe('$dialog', function(){
 		var setOptionBeforeEachAndOpen = function(opts){
 			beforeEach(function(){
 				provider.options(opts);
-				d = $dialog.open('foo');
+				d = $dialog.open({template:'foo'});
+        $rootScope.$apply();
 			});
 		};
 
@@ -114,7 +113,8 @@ describe('$dialog', function(){
 		var d;
 		
 		beforeEach(function(){
-			d = $dialog.open('foo');
+			d = $dialog.open({template:'foo'});
+      $rootScope.$apply();
 			d.close();
 		});
 
@@ -122,6 +122,7 @@ describe('$dialog', function(){
 			beforeEach(function(){
 				expect($document.find('body > div.modal-backdrop').length).toBe(0);
 				d.open();
+        $rootScope.$apply();
 			});
 			afterEach(function(){
 				d.close();
@@ -152,4 +153,30 @@ describe('$dialog', function(){
 			expect($document.find('body > div.modal').length).toBe(0);
 		});
 	});
+
+  describe('with a controller', function() {
+    var ctrl, d;
+
+    beforeEach(inject(function($controller) {
+      function TestController($scope, cake, dialog) {
+        $scope.cake = cake;
+        $scope.dialog = dialog;
+      }
+      d = $dialog.open({
+        template: '<div class="content">{{cake}} - {{dialog.isOpen()}}</div>',
+        controller: TestController,
+        resolve: {
+          cake: "chocolate"
+        }
+      });
+      $rootScope.$apply();
+    }));
+
+    iit('should have interpolated cake and dialog.isOpen()', function() { 
+      var el = $document.find('body > div.modal');
+      dump(el);
+      dump(d.isOpen());
+      expect(el.find('div.content').text()).toEqual('chocolate - true');
+    });
+  });
 });
