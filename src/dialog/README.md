@@ -13,9 +13,10 @@ Sets the default global options for your application. Options can be overridden 
 *   `backdrop`: a boolean value indicating whether a backdrop should be used or not.
 *   `modalClass`: the css class for the modal div, defaults to 'modal'
 *   `backdropClass`: the css class for the backdrop, defaults to 'modal-backdrop'
+*   `transitionClass`: the css class that applies transitions to the nodal and backdrop, defaults to 'fade'
+*   `triggerClass`: the css class that triggers the transitions. default to 'in'
+*   `resolve`: members that will be resolved and passed to the controller as locals
 *   `controller`: the controller to associate with the included partial view
-*   `locals`: local variables shared with the scope of the dialog
-*   `callback`: a function that is called with the result from the close method
 *   `backdropFade`: a boolean value indicating whether the backdrop should fade in and out using a CSS transition, defaults to false
 *   `modalFade`: a boolean value indicating whether the nodal should fade in and out using a CSS transition, defaults to false
 *   `keyboard`: indicates whether the dialog should be closable by hitting the ESC key, defaults to true
@@ -35,21 +36,30 @@ Allows you to open dialogs from within you controller.
 
 ### Methods
 
-#### `open(include[, opts])`
+#### `dialog([templateUrl[, controller]])`
 
-Opens a dialog by including the specific `include` template. Default or globally set options can be overridden using the opts parameter.
+Creates a new dialog, optionally setting the `templateUrl`, and `controller` options.
 
 Example:
 
     app.controller('MainCtrl', function($dialog, $scope) {
         $scope.openItemEditor = function(item){
-            var d = $dialog.open({templateUrl: 'dialogs/item-editor.html', modalFade: false, locals: {item: item}});
+            var d = $dialog.dialog({modalFade: false, resolve: {item: angular.copy(item) }});
+            d.open('dialogs/item-editor.html', 'EditItemController');
         };
     });
 
-#### `message(title, message, buttons[, opts])`
+    // note that the resolved item as well as the dialog are injected in the dialog's controller
+    app.controller('EditItemController', ['$scope', 'dialog', 'item', function($scope, dialog, item){
+        $scope.item = item;
+        $scope.submit = function(){
+            dialog.close('ok');
+        };
+    }]);
 
-Opens a message box with the specified `title`, `message` ang  a series of `buttons` can be provided, every button can specify:
+#### `message(title, message, buttons)`
+
+Opens a message box with the specified `title`, `message` ang a series of `buttons` can be provided, every button can specify:
 
 *   `label`: the label of the button
 *   `result`: the result used to invoke the close method of the dialog
@@ -59,9 +69,10 @@ Example:
 
     app.controller('MainCtrl', function($dialog, $scope) {
         $scope.deleteItem = function(item){
-            d = $dialog.message('Delete Item', 'Are you sure?', [{label:'Yes, I'm sure, result: 'yes'},{label:'Nope', result: 'no'}])
-            .yes(deleteItem)
-            .no(function(){});
+            var msgbox = $dialog.message('Delete Item', 'Are you sure?', [{label:'Yes, I'm sure, result: 'yes'},{label:'Nope', result: 'no'}]);
+            msgbox.open().then(function(result){
+                if(result === 'yes') {deleteItem(item);}
+            });
         };
     });
 
@@ -73,8 +84,9 @@ The dialog object returned by the `$dialog` service methods `open` and `message`
 
 #### `open`
 
-(Re)Opens the dialog.
+(Re)Opens the dialog and returns a promise.
 
 #### `close([result])`
 
-Closes the dialog. Optionally a result can be specified.
+Closes the dialog. Optionally a result can be specified. The result is used to resolve the promise returned by the `open` method.
+

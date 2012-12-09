@@ -1,208 +1,258 @@
-angular.module('ui.bootstrap.dialog', []).provider("$dialog", function(){
+// The `$dialogProvider` can be used to configure global defaults for your
+// `$dialog` service.
+var dialogModule = angular.module('ui.bootstrap.dialog', []);
 
+dialogModule.controller('MessageBoxController', ['$scope', 'dialog', 'model', function($scope, dialog, model){
+  $scope.title = model.title;
+  $scope.message = model.message;
+  $scope.buttons = model.buttons;
+  $scope.close = function(res){
+    dialog.close(res);
+  };
+}]);
+
+dialogModule.provider("$dialog", function(){
+
+  // The default options for all dialogs.
 	var defaults = {
 		backdrop: true,
 		modalClass: 'modal',
 		backdropClass: 'modal-backdrop',
-		controller:null,
+    transitionClass: 'fade',
+    triggerClass: 'in',
 		resolve:{},
-		callback: null,
 		backdropFade: false,
 		modalFade:false,
 		keyboard: true, // close with esc key
 		backdropClick: true // only in conjunction with backdrop=true
+    /* other options: template, templateUrl, controller */
 	};
 
 	var globalOptions = {};
 
+  // The `options({})` allows global configuration of all dialogs in the application.
+  //
+  //      var app = angular.module('App', ['ui.bootstrap.dialog'], function($dialogProvider){
+  //        // don't close dialog when backdrop is clicked by default
+  //        $dialogProvider.options({backdropClick: false});
+  //      });
 	this.options = function(value){
 		globalOptions = value;
 	};
 
-	this.$get = ["$http","$document","$compile","$rootScope","$controller","$templateCache", "$q", function ($http, $document, $compile, $rootScope, $controller, $templateCache, $q) {
+  // Returns the actual `$dialog` service that is injected in controllers
+	this.$get = ["$http", "$document", "$compile", "$rootScope", "$controller", "$templateCache", "$q", function ($http, $document, $compile, $rootScope, $controller, $templateCache, $q) {
 
 		var body = $document.find('body');
 
-		function createElement(clazz, fade) {
+		function createElement(clazz) {
 			var el = angular.element("<div>");
 			el.addClass(clazz);
-			if(fade){
-				el.addClass('fade');
-				el.removeClass('in'); // just to be sure
-			}
 			return el;
 		}
 
-
+    // The `Dialog` class represents a modal dialog. The dialog class can be invoked by providing an options object
+    // containing at lest template or templateUrl and controller:
+    // 
+    //     var d = new Dialog({templateUrl: 'foo.html', controller: 'BarController'});
+    // 
+    // Dialogs can also be created using templateUrl and controller as distinct arguments:
+    //
+    //     var d = new Dialog('path/to/dialog.html', MyDialogController);
 		function Dialog(opts) {
-      var self = this;
-			var options = self.options = angular.extend({}, defaults, globalOptions, opts);
-      var promises = {};
-      var open = false;
-			var backdropEl = createElement(options.backdropClass, options.backdropFade);
-			var modalEl = createElement(options.modalClass, options.modalFade);
 
-      //Create lots of functions
-      function createPromise(name) {
-        self[name] = function(cb) {
-          promises[name] = cb;
-          return self;
-        };
+      var self = this, options = this.options = angular.extend({}, defaults, globalOptions, opts);
+
+      this.backdropEl = createElement(options.backdropClass);
+      if(options.backdropFade){
+        this.backdropEl.addClass(options.transitionClass);
+        this.backdropEl.removeClass(options.triggerClass);
       }
-      function handledEscapeKey(e) {
-        if (e.keyCode === 27) {
+
+      this.modalEl = createElement(options.modalClass);
+      if(options.modalFade){
+        this.modalEl.addClass(options.transitionClass);
+        this.modalEl.removeClass(options.triggerClass);
+      }
+
+      this.handledEscapeKey = function(e) {
+        if (e.which === 27) {
           self.close();
           e.preventDefault();
+          self.$scope.$apply();
         }
-      }
-      function handleBackDropClick(e) {
+      };
+
+      this.handleBackDropClick = function(e) {
         self.close();
         e.preventDefault();
-      }
-      function bindEvents() {
-        if(options.keyboard){ body.bind('keydown', handledEscapeKey); }
-        if(options.backdrop && options.backdropClick){ backdropEl.bind('click', handleBackDropClick); }
-      }
-      function unbindEvents() {
-        if(options.keyboard){ body.unbind('keydown', handledEscapeKey); }
-        if(options.backdrop && options.backdropClick){ backdropEl.unbind('click', handleBackDropClick); }
-      }
-      function onCloseComplete(result) {
-        open = false;
-        modalEl.remove();
-        if(options.backdrop) { backdropEl.remove(); }
-
-        unbindEvents();
-
-        if(options.callback) { options.callback(result); }
-        if(promises[result]) {
-          promises[result](result);
-        }
-        if(promises['closed']){
-          promises['closed'](result);
-        }
-      }
-
-     /* // add promise method for each button
-      angular.forEach((options.resolve || {}).buttons || [], function(btn) {
-        createPromise(btn.result);
-      });
-      */
-      createPromise('closed');
-
-      self.isOpen = function() {
-        return open;
-      };
-
-      self.close = function(result){
-        function transitionHandler(e) {
-          modalEl.unbind(angularUI.getTransitionEndEventName(), transitionHandler);
-          onCloseComplete(result);
-        }
-
-        /*modalEl.bind(angularUI.getTransitionEndEventName(), transitionHandler);*/
-        if(options.modalFade){
-          modalEl.removeClass('in');
-
-          if(options.backdropFade){
-            backdropEl.removeClass('in');
-          }
-          return;
-        }
-
-        onCloseComplete(result);
-      };
-
-      //Resolve all the `resolve` options and the template
-      //This is stolen almost straight from angular $route source code
-      function loadResolves() {
-        var values = [], keys = [], template;
-        if (template = options.template) {
-        } else if (template = options.templateUrl) {
-          template = $http.get(options.templateUrl, {cache:$templateCache})
-          .then(function(response) { return response.data; });
-        }
-        angular.forEach(options.resolve || [], function(value, key) {
-          keys.push(key);
-          values.push(value);
-        });
-        keys.push('$template');
-        values.push(template);
-        return $q.all(values).then(function(values) {
-          var locals = {};
-          angular.forEach(values, function(value, index) {
-            locals[keys[index]] = value;
-          });
-          return locals;
-        });
-      }
-      self.open = function(){
-        loadResolves().then(function(locals) {
-          var $scope = locals.$scope = $rootScope.$new();
-
-          modalEl.html(locals.$template);
-          if (options.controller) {
-            var ctrl = $controller(options.controller, locals);
-            modalEl.contents().data('ngControllerController', ctrl);
-          }
-
-          $compile(modalEl.contents())($scope);
-          body.append(modalEl);
-          if(options.backdrop) { body.append(backdropEl); }
-          open = true;
-
-          //Add classes after a short timeout
-          setTimeout(function(){
-            if(options.modalFade){ modalEl.addClass('in'); }
-            if(options.backdropFade){ backdropEl.addClass('in'); }
-          });
-
-          bindEvents();
-        });
+        self.$scope.$apply();
       };
     }
 
-    // This version returns a SERVICE that allows you to open dialogs specifying a template and optional options. The 
-    // open method returns an object that represents the dialog and allows, closing it (and opening it again)
+    // The `isOpen()` method returns wether the dialog is currently visible.
+    Dialog.prototype.isOpen = function(){
+      return this._open;
+    };
 
-    // Another option would be returning a CONSTRUCTOR that creates a dialog, but does not show it immediately. 
+    // The `open(templateUrl, controller)` method opens the dialog.
+    // Use the `templateUrl` and `controller` arguments if specifying them at dialog creation time is not desired.
+    Dialog.prototype.open = function(templateUrl, controller){
+      var self = this, options = this.options;
 
-    // I'm leaning towards the first option:
-    //	- it does not manipulate the DOM unless it has to, self could be done with the .ctor version as well, 
-    //	but that feels a bit awkward, I think
-    //	- The injected $dialog could also support Prompt, Alert, etc. which makes it defintely a service.
+      if(templateUrl){
+        options.templateUrl = templateUrl;
+      }
+      if(controller){
+        options.controller = controller;
+      }
+      
+      if(!(options.template || options.templateUrl)) {
+        throw new Error('Dialog.open expected template or templateUrl, neither found. Use options or open method to specify them.');
+      }
 
-    // ze $dialog servize
-    return {
-      /*
-      message: function(title, message, buttons, opts){
-        if(!title) {
-          throw new Error('title is required');
+      this._loadResolves().then(function(locals) {
+        var $scope = locals.$scope = self.$scope = $rootScope.$new();
+
+        self.modalEl.html(locals.$template);
+
+        if (self.options.controller) {
+          var ctrl = $controller(self.options.controller, locals);
+          self.modalEl.contents().data('ngControllerController', ctrl);
         }
-        if(!message) {
-          throw new Error('message is required');
-        }
-        if(!buttons) {
-          throw new Error('buttons is required');
-        }
-        var options = angular.extend({}, opts, {
-            resolve: {
-              title:title,
-              message:message,
-              buttons:buttons // [{label:, cssClass:, result:}]
-            }, 
-            templateUrl: 'template/dialog/message.html'
+
+        $compile(self.modalEl.contents())($scope);
+        self._addElementsToDom();
+
+        // trigger tranisitions
+        setTimeout(function(){
+          if(self.options.modalFade){ self.modalEl.addClass(self.options.triggerClass); }
+          if(self.options.backdropFade){ self.backdropEl.addClass(self.options.triggerClass); }
         });
 
-        return this.open(options);
-      },*/
-      open: function(opts){
-        if(!(opts.template || opts.templateUrl)) {
-          throw new Error('dialog.open expected options.template or options.templateUrl, neither found.');
+        self._bindEvents();
+      });
+
+      this.deferred = $q.defer();
+      return this.deferred.promise;
+    };
+
+    // closes the dialog and resolves the promise returned by the `open` method with the specified result.
+    Dialog.prototype.close = function(result){
+      var self = this;
+      var fadingEl = this._getFirstFadingElement();
+
+      function transitionHandler(e) {
+        self.modalEl.unbind(angularUI.getTransitionEndEventName(), transitionHandler);
+        self._onCloseComplete(result);
+      }
+
+      if(fadingEl){
+        this.modalEl.bind(angularUI.getTransitionEndEventName(), transitionHandler);
+        
+        if(this.options.modalFade){
+          this.modalEl.removeClass(this.options.triggerClass);
+
+          if(this.options.backdropFade){
+            this.backdropEl.removeClass(this.options.triggerClass);
+          }
+          return;
         }
-        var dlg = new Dialog(opts);
-        dlg.open();
-        return dlg;
+      }
+
+      this._onCloseComplete(result);
+    };
+
+    Dialog.prototype._getFirstFadingElement = function(){
+      return this.options.modalFade ? this.modalEl : this.options.backdropFade ? this.backdropEl : null;
+    };
+
+    Dialog.prototype._fadingEnabled = function(){
+      return this.options.modalFade || this.options.backdropFade;
+    };
+
+    Dialog.prototype._bindEvents = function() {
+      if(this.options.keyboard){ body.bind('keydown', this.handledEscapeKey); }
+      if(this.options.backdrop && this.options.backdropClick){ this.backdropEl.bind('click', this.handleBackDropClick); }
+    };
+
+    Dialog.prototype._unbindEvents = function() {
+      if(this.options.keyboard){ body.unbind('keydown', this.handledEscapeKey); }
+      if(this.options.backdrop && this.options.backdropClick){ this.backdropEl.unbind('click', this.handleBackDropClick); }
+    };
+
+    Dialog.prototype._onCloseComplete = function(result) {
+      this._removeElementsFromDom();
+      this._unbindEvents();
+
+      this.deferred.resolve(result);
+
+      if(this._fadingEnabled()){
+        this.$scope.$apply();
+      }
+    };
+
+    Dialog.prototype._addElementsToDom = function(){
+      body.append(this.modalEl);
+      if(this.options.backdrop) { body.append(this.backdropEl); }
+      this._open = true;
+    };
+
+    Dialog.prototype._removeElementsFromDom = function(){
+      this.modalEl.remove();
+      if(this.options.backdrop) { this.backdropEl.remove(); }
+      this._open = false;
+    };
+
+    // Loads all `options.resolve` members to be used as locals for the controller associated with the dialog.
+    Dialog.prototype._loadResolves = function(){
+      var values = [], keys = [], template, self = this;
+
+      if (template = this.options.template) {
+      } else if (template = this.options.templateUrl) {
+        template = $http.get(this.options.templateUrl, {cache:$templateCache})
+        .then(function(response) { return response.data; });
+      }
+
+      angular.forEach(this.options.resolve || [], function(value, key) {
+        keys.push(key);
+        values.push(value);
+      });
+
+      keys.push('$template');
+      values.push(template);
+
+      return $q.all(values).then(function(values) {
+        var locals = {};
+        angular.forEach(values, function(value, index) {
+          locals[keys[index]] = value;
+        });
+        locals.dialog = self;
+        return locals;
+      });
+    };
+
+    // The actual `$dialog` service that is injected in controllers.
+    return {
+      // Creates a new `Dialog` with the specified options.
+      dialog: function(opts){
+        return new Dialog(opts);
+      },
+      // creates a new `Dialog` tied to the default message box template and controller.
+      // 
+      // Arguments `title` and `message` are rendered in the modal header and body sections respectively.
+      // The `buttons` array holds an object with the following members for each button to include in the 
+      // modal footer section:
+      //
+      // * `result`: the result to pass to the `close` method of the dialog when the button is clicked
+      // * `label`: the label of the button
+      // * `cssClass`: additional css class(es) to apply to the button for styling
+      messageBox: function(title, message, buttons){
+        return new Dialog({templateUrl: 'template/dialog/message.html', controller: 'MessageBoxController', resolve: {model: {
+          title: title,
+          message: message,
+          buttons: buttons
+        }}});
       }
     };
   }];
