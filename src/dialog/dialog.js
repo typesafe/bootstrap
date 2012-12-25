@@ -1,6 +1,6 @@
 // The `$dialogProvider` can be used to configure global defaults for your
 // `$dialog` service.
-var dialogModule = angular.module('ui.bootstrap.dialog', []);
+var dialogModule = angular.module('ui.bootstrap.dialog', ['ui.bootstrap.transition']);
 
 dialogModule.controller('MessageBoxController', ['$scope', 'dialog', 'model', function($scope, dialog, model){
   $scope.title = model.title;
@@ -41,7 +41,8 @@ dialogModule.provider("$dialog", function(){
 	};
 
   // Returns the actual `$dialog` service that is injected in controllers
-	this.$get = ["$http", "$document", "$compile", "$rootScope", "$controller", "$templateCache", "$q", function ($http, $document, $compile, $rootScope, $controller, $templateCache, $q) {
+	this.$get = ["$http", "$document", "$compile", "$rootScope", "$controller", "$templateCache", "$q", "$transition",
+  function ($http, $document, $compile, $rootScope, $controller, $templateCache, $q, $transition) {
 
 		var body = $document.find('body');
 
@@ -140,31 +141,38 @@ dialogModule.provider("$dialog", function(){
     // closes the dialog and resolves the promise returned by the `open` method with the specified result.
     Dialog.prototype.close = function(result){
       var self = this;
-      var fadingEl = this._getFirstFadingElement();
+      var fadingElements = this._getFadingElements();
 
-      function transitionHandler(e) {
-        self.modalEl.unbind(angularUI.getTransitionEndEventName(), transitionHandler);
-        self._onCloseComplete(result);
-      }
-
-      if(fadingEl){
-        this.modalEl.bind(angularUI.getTransitionEndEventName(), transitionHandler);
-        
-        if(this.options.modalFade){
-          this.modalEl.removeClass(this.options.triggerClass);
-
-          if(this.options.backdropFade){
-            this.backdropEl.removeClass(this.options.triggerClass);
-          }
-          return;
+      if(fadingElements.length > 0){
+        for (var i = fadingElements.length - 1; i >= 0; i--) {
+          $transition(fadingElements[i], removeTriggerClass).then(onCloseComplete);
         }
+        return;
       }
 
       this._onCloseComplete(result);
+
+      function removeTriggerClass(el){
+        el.removeClass(self.options.triggerClass);
+      }
+
+      function onCloseComplete(){
+        if(self._open){
+          self._onCloseComplete(result);
+        }
+      }
     };
 
-    Dialog.prototype._getFirstFadingElement = function(){
-      return this.options.modalFade ? this.modalEl : this.options.backdropFade ? this.backdropEl : null;
+    Dialog.prototype._getFadingElements = function(){
+      var elements = [];
+      if(this.options.modalFade){
+        elements.push(this.modalEl);
+      }
+      if(this.options.backdropFade){
+        elements.push(this.backdropEl);
+      }
+
+      return elements;
     };
 
     Dialog.prototype._fadingEnabled = function(){
